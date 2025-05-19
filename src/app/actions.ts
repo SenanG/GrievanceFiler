@@ -23,9 +23,19 @@ export async function submitGrievance(message: string) {
     })
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({})) // Try to parse error response
-      console.error("API Error:", errorData)
-      throw new Error(errorData.error || "Failed to submit grievance")
+      const responseText = await response.text(); // Get raw response text
+      console.error(`API Error: Status ${response.status} ${response.statusText}. Response text: ${responseText}`);
+      let errorDetail = "Failed to submit grievance";
+      try {
+        const errorData = JSON.parse(responseText); // Try to parse it as JSON
+        if (errorData && errorData.error) {
+          errorDetail = errorData.error;
+        }
+      } catch {
+        // Not a JSON response, or JSON doesn't contain .error
+        console.warn("API error response was not valid JSON or did not contain an 'error' field.");
+      }
+      throw new Error(errorDetail);
     }
 
     return { success: true }
