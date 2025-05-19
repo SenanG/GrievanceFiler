@@ -6,17 +6,27 @@ const authToken = process.env.TWILIO_AUTH_TOKEN;
 const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
 const recipientPhoneNumber = '+16474580648';
 
+// Log the presence of environment variables (without logging the values themselves for security)
+console.log('TWILIO_ACCOUNT_SID is set:', !!accountSid);
+console.log('TWILIO_AUTH_TOKEN is set:', !!authToken);
+console.log('TWILIO_PHONE_NUMBER is set:', !!twilioPhoneNumber);
+
 if (!accountSid || !authToken || !twilioPhoneNumber) {
-  console.error('Twilio environment variables are not set.');
+  console.error('Critical: Twilio environment variables are not fully set.');
   // Do not proceed with client initialization if variables are missing
 }
 
 // Initialize client only if variables are set
 const client = accountSid && authToken ? Twilio(accountSid, authToken) : null;
 
+if (!client) {
+  console.error('Critical: Twilio client failed to initialize, likely due to missing SID or Token.');
+}
+
 export async function POST(request: Request) {
   if (!client) {
-    return NextResponse.json({ error: 'Twilio client is not configured. Missing environment variables.' }, { status: 500 });
+    // This specific error message should be returned if client is null
+    return NextResponse.json({ error: 'Twilio client is not configured on the server. Please check server logs. Missing environment variables.' }, { status: 500 });
   }
   try {
     const body = await request.json();
@@ -40,7 +50,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, message: 'Grievance sent successfully!' });
 
   } catch (error: unknown) {
-    console.error('Twilio API Error:', error);
+    console.error('Twilio API Error (raw JSON):', JSON.stringify(error, null, 2));
+    console.error('Twilio API Error (full object):', error);
     let errorMessage = 'Failed to send grievance.';
     if (error instanceof Error) {
       errorMessage += ` Details: ${error.message}`;
