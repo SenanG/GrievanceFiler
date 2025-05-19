@@ -27,14 +27,19 @@ export default function GrievanceForm() {
     setIsSubmitting(true)
 
     try {
-      await submitGrievance(grievance)
-      setIsSubmitted(true)
-      setGrievance("")
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message || "Something went wrong. Please try again.")
+      const result = await submitGrievance(grievance)
+      if (result.success) {
+        setIsSubmitted(true)
+        setGrievance("")
       } else {
-        setError("Something went wrong. Please try again.")
+        setError(result.error || "Something went wrong. Please try again.")
+      }
+    } catch (err: unknown) {
+      console.error("Unexpected client-side error during submit:", err)
+      if (err instanceof Error) {
+        setError(err.message || "An unexpected client-side error occurred. Please try again.")
+      } else {
+        setError("An unexpected client-side error occurred. Please try again.")
       }
     } finally {
       setIsSubmitting(false)

@@ -1,6 +1,6 @@
 "use server"
 
-export async function submitGrievance(message: string) {
+export async function submitGrievance(message: string): Promise<{ success: boolean; error?: string }> {
   try {
     // This is where you would integrate with Twilio to send the message
     // Example implementation (you'll need to replace with your actual API endpoint):
@@ -25,7 +25,7 @@ export async function submitGrievance(message: string) {
     if (!response.ok) {
       const responseText = await response.text(); // Get raw response text
       console.error(`API Error: Status ${response.status} ${response.statusText}. Response text: ${responseText}`);
-      let errorDetail = "Failed to submit grievance";
+      let errorDetail = "Failed to submit grievance due to an API issue.";
       try {
         const errorData = JSON.parse(responseText); // Try to parse it as JSON
         if (errorData && errorData.error) {
@@ -35,16 +35,19 @@ export async function submitGrievance(message: string) {
         // Not a JSON response, or JSON doesn't contain .error
         console.warn("API error response was not valid JSON or did not contain an 'error' field.");
       }
-      throw new Error(errorDetail);
+      return { success: false, error: errorDetail };
     }
 
-    return { success: true }
+    return { success: true };
   } catch (error) {
-    console.error("Error submitting grievance:", error)
+    console.error("Error submitting grievance (unexpected error in action):", error);
     // Ensure the error message passed to the client is a string
+    const errorMessage = "An unexpected error occurred while submitting the grievance.";
     if (error instanceof Error) {
-      throw new Error(error.message || "Failed to submit grievance")
+      // We don't want to leak raw internal error messages by default from unexpected errors.
+      // errorMessage remains generic, but it's logged on the server.
+      // If specific errors are known and safe, they could be handled here.
     }
-    throw new Error("Failed to submit grievance")
+    return { success: false, error: errorMessage };
   }
 } 
