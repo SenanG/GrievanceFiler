@@ -6,8 +6,14 @@ export async function submitGrievance(message: string) {
     // Example implementation (you'll need to replace with your actual API endpoint):
 
     // For server-side fetch, an absolute URL is needed.
-    // In production, this should be dynamically set (e.g., via environment variables like process.env.NEXT_PUBLIC_APP_URL or process.env.VERCEL_URL)
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    let baseUrl = "http://localhost:3000"; // Default for local development
+    if (process.env.VERCEL_URL) {
+      // VERCEL_URL includes the domain only, so we need to add https://
+      baseUrl = `https://${process.env.VERCEL_URL}`;
+    } else if (process.env.NEXT_PUBLIC_APP_URL) { // Fallback if you prefer to set this manually
+      baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+    }
+
     const response = await fetch(`${baseUrl}/api/send-grievance`, {
       method: "POST",
       headers: {
