@@ -1,53 +1,58 @@
 "use server"
 
+import Twilio from 'twilio';
+
+// Define recipientPhoneNumber at the top level if it's constant for this action
+const recipientPhoneNumber = '+16474580648'; // Consider moving to env var if it changes
+
 export async function submitGrievance(message: string): Promise<{ success: boolean; error?: string }> {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
+
+  // Log the presence of environment variables (without logging the values themselves for security)
+  console.log('In action - TWILIO_ACCOUNT_SID is set:', !!accountSid);
+  console.log('In action - TWILIO_AUTH_TOKEN is set:', !!authToken);
+  console.log('In action - TWILIO_PHONE_NUMBER is set:', !!twilioPhoneNumber);
+
+  if (!accountSid || !authToken || !twilioPhoneNumber) {
+    console.error('Critical: Twilio environment variables are not fully set in action.');
+    return { success: false, error: 'Twilio client is not configured on the server. Missing environment variables.' };
+  }
+
+  const client = Twilio(accountSid, authToken);
+  // No need to check if client is null here, as Twilio constructor will throw if SID/Token are invalid/missing,
+  // but the check above for presence should catch most issues. We rely on the try/catch below for other init errors.
+
   try {
-    // This is where you would integrate with Twilio to send the message
-    // Example implementation (you'll need to replace with your actual API endpoint):
-
-    // For server-side fetch, an absolute URL is needed.
-    let baseUrl = "http://localhost:3000"; // Default for local development
-    if (process.env.VERCEL_URL) {
-      // VERCEL_URL includes the domain only, so we need to add https://
-      baseUrl = `https://${process.env.VERCEL_URL}`;
-    } else if (process.env.NEXT_PUBLIC_APP_URL) { // Fallback if you prefer to set this manually
-      baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (!message || typeof message !== 'string' || message.trim() === '') {
+      return { success: false, error: 'Message is required and must be a non-empty string.' };
     }
 
-    const response = await fetch(`${baseUrl}/api/send-grievance`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ message }),
-    })
+    // Optional: Add more validation for message length, content, etc.
+    // if (message.length > 1600) { // Twilio's character limit
+    //   return { success: false, error: 'Message exceeds maximum length.' };
+    // }
 
-    if (!response.ok) {
-      const responseText = await response.text(); // Get raw response text
-      console.error(`API Error: Status ${response.status} ${response.statusText}. Response text: ${responseText}`);
-      let errorDetail = "Failed to submit grievance due to an API issue.";
-      try {
-        const errorData = JSON.parse(responseText); // Try to parse it as JSON
-        if (errorData && errorData.error) {
-          errorDetail = errorData.error;
-        }
-      } catch {
-        // Not a JSON response, or JSON doesn't contain .error
-        console.warn("API error response was not valid JSON or did not contain an 'error' field.");
-      }
-      return { success: false, error: errorDetail };
-    }
-
+    console.log(`Attempting to send message from ${twilioPhoneNumber} to ${recipientPhoneNumber}`);
+    await client.messages.create({
+      body: message,
+      from: twilioPhoneNumber, // No non-null assertion needed due to check above
+      to: recipientPhoneNumber,
+    });
+    console.log('Message sent successfully via Twilio.');
     return { success: true };
+
   } catch (error) {
-    console.error("Error submitting grievance (unexpected error in action):", error);
-    // Ensure the error message passed to the client is a string
-    const errorMessage = "An unexpected error occurred while submitting the grievance.";
+    console.error("Error in submitGrievance action (Twilio or other):", error);
+    const errorMessage = "Failed to send grievance due to a server error.";
     if (error instanceof Error) {
-      // We don't want to leak raw internal error messages by default from unexpected errors.
-      // errorMessage remains generic, but it's logged on the server.
-      // If specific errors are known and safe, they could be handled here.
+      // Potentially log error.message for more detailed server-side debugging
+      // but return a more generic message to the client unless it's a specific, safe error.
+      // e.g. if (error.message.includes("is not a valid phone number")) errorMessage = "Invalid recipient phone number.";
     }
+    // For Twilio-specific errors, error might have more details, e.g. error.status, error.code
+    // console.error("Raw Twilio Error details:", JSON.stringify(error, null, 2));
     return { success: false, error: errorMessage };
   }
 } 
