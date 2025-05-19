@@ -1,14 +1,23 @@
 import { NextResponse } from 'next/server';
 import Twilio from 'twilio';
 
-const accountSid = 'AC84aef93fd700f1adffe7bbb7d639098d';
-const authToken = '751838f11c9dd22dad996c6fd8757a7e';
-const twilioPhoneNumber = '+12494945931';
+const accountSid = process.env.TWILIO_ACCOUNT_SID;
+const authToken = process.env.TWILIO_AUTH_TOKEN;
+const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
 const recipientPhoneNumber = '+16474580648';
 
-const client = Twilio(accountSid, authToken);
+if (!accountSid || !authToken || !twilioPhoneNumber) {
+  console.error('Twilio environment variables are not set.');
+  // Do not proceed with client initialization if variables are missing
+}
+
+// Initialize client only if variables are set
+const client = accountSid && authToken ? Twilio(accountSid, authToken) : null;
 
 export async function POST(request: Request) {
+  if (!client) {
+    return NextResponse.json({ error: 'Twilio client is not configured. Missing environment variables.' }, { status: 500 });
+  }
   try {
     const body = await request.json();
     const { message } = body;
@@ -24,7 +33,7 @@ export async function POST(request: Request) {
 
     await client.messages.create({
       body: message,
-      from: twilioPhoneNumber,
+      from: twilioPhoneNumber!,
       to: recipientPhoneNumber,
     });
 
